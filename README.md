@@ -1,7 +1,7 @@
 # Swift-Cache-Service
 A simple cacheing service written in Swift for the cacheing of NSObjects and Codable.
 
-General NSObject, NSSecureCoding class implementation example:
+General NSObject + NSSecureCoding, and Codable class implementation examples:
 
 ```swift
 class NSTestObject : NSObject, NSSecureCoding {
