@@ -1,5 +1,5 @@
 # Swift-Cache-Service
-A simple cacheing service written in Swift for the cacheing of NSObjects and Codable.
+A simple cacheing service written in Swift for the cacheing of NSObjects (and hence, UIImage, since UIImages conform to NSCoding/NSSecureCoding) and Codable.
 
 General NSObject + NSSecureCoding, and Codable class implementation examples:
 
