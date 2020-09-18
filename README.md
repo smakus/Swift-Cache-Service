@@ -5,7 +5,7 @@ The formatting of this ReadMe garbage, and the code interpreter part of it doesn
 
 General NSObject, NSCoding class implementation example:
 
-'''swift
+```swift
 class NSTestObject : NSObject, NSSecureCoding {
     
     var bird:Int!;
@@ -43,11 +43,11 @@ class CodableTestObject : Codable {
         self.dog = dog
     }
 }
-'''
+```
 
 Usage with cache service:
 
-'''
+```
 let testObject = NSTestObject(bird: 1, dog: "woof");  //let testObject = CodableTestObject(bird: 1, dog: "woof");
 CacheService.shared.cacheObject(key: "object1", object: testObject)
 CacheService.shared.saveCacheToDisk()
@@ -59,4 +59,4 @@ if let birddog =  CacheService.shared.getObject(for: "object1") as NSTestObject?
 } else {
         //something failed
 }
-'''
+```
