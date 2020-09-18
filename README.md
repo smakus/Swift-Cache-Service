@@ -1,13 +1,15 @@
-# NSObject-Cache-Service
-A simple cacheing service written in Swift for the cacheing of NSObjects
+# Swift-Cache-Service
+A simple cacheing service written in Swift for the cacheing of NSObjects and Codable
 
 General NSObject, NSCoding class implementation example:
 
-class TestObject : NSObject, NSCoding {
-
+class NSTestObject : NSObject, NSSecureCoding {
+    
     var bird:Int!;
     var dog:String!;
-
+    
+    static var supportsSecureCoding: Bool = true
+    
     func encode(with coder: NSCoder) {
         coder.encode(bird, forKey: "bird")
         coder.encode(dog, forKey: "dog")
@@ -29,15 +31,25 @@ class TestObject : NSObject, NSCoding {
     }
 }
 
+class CodableTestObject : Codable {
+    var bird:Int;
+    var dog:String;
+    init(bird: Int, dog:String)
+    {
+        self.bird = bird
+        self.dog = dog
+    }
+}
+
 Usage with cache service:
 
-let testObject = TestObject(bird: 1, dog: "woof");
+let testObject = NSTestObject(bird: 1, dog: "woof");  //let testObject = CodableTestObject(bird: 1, dog: "woof");
 CacheService.shared.cacheObject(key: "object1", object: testObject)
 CacheService.shared.saveCacheToDisk()
 CacheService.shared.clearCache(memoryOnly: true)
 CacheService.shared.loadCacheFromDisk()
 
-if let birddog =  CacheService.shared.getObject(for: "object1") as TestObject? {
+if let birddog =  CacheService.shared.getObject(for: "object1") as NSTestObject? {
          //good job
 } else {
         //something failed
