@@ -1,8 +1,6 @@
 # Swift-Cache-Service
 A simple cacheing service written in Swift for the cacheing of NSObjects and Codable.
 
-The formatting of this ReadMe garbage, and the code interpreter part of it doesn't work right.  Pay attention to what is code and what is explanation.
-
 General NSObject, NSCoding class implementation example:
 
 ```swift
@@ -47,7 +45,7 @@ class CodableTestObject : Codable {
 
 Usage with cache service:
 
-```
+```swift
 let testObject = NSTestObject(bird: 1, dog: "woof");  //let testObject = CodableTestObject(bird: 1, dog: "woof");
 CacheService.shared.cacheObject(key: "object1", object: testObject)
 CacheService.shared.saveCacheToDisk()
