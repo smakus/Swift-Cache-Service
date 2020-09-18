@@ -43,7 +43,7 @@ class CodableTestObject : Codable {
 }
 ```
 
-Usage with cache service:
+Usage with cache service (and demonstration of all basic cache features, such as (de)serialization to/from disk:
 
 ```swift
 let testObject = NSTestObject(bird: 1, dog: "woof");  //let testObject = CodableTestObject(bird: 1, dog: "woof");
@@ -58,3 +58,6 @@ if let birddog =  CacheService.shared.getObject(for: "object1") as NSTestObject?
         //something failed
 }
 ```
+
+
+The above example creates an object to cache, caches it, then serializes the cache to disk, then clears the cache memory, then reads the cache from disk to memory, and finally reads the original object out of the cache.
