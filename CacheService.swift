@@ -131,14 +131,14 @@ class CacheService {
     //WARNING: ALL nscache objects need to follow the NSObject, NSCoding standard in order to serialize properly.
     //So why are we doing this?  Codable only works on almalgamations of primitive types, and swift can't serialize general AnyObjects yet, while NSObject can, provided you implement NSCoding (and images happen to serialize perfectly, as they already adhere to NSCoding).
     
-    func cacheObject(key: String, object: AnyObject, TTLInMinutes:Int? = nil)
+    func cacheObject<T>(key: String, object: T, TTLInMinutes:Int? = nil)
     {
         var newTTL = TTLInMinutes
         if newTTL == nil {
             if object is UIImage {
                 newTTL = 1440 //cache images for a day
             } else {
-                newTTL = 10 //cache anything else for 10 minutes ... i guess
+                newTTL = 525600 //cache anything else for a long date (login timeout should eventually refresh these)
             }
         }
         if object is Codable {
