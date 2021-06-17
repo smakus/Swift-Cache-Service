@@ -54,6 +54,21 @@ class CacheService {
         }
     }
     
+    func purgeExpiredObjects() {
+        let purgeDate = Date()
+        for (key, value) in self.CodableCache {
+            if value.expirationDate <= purgeDate {
+                self.CodableCache[key] = nil
+            }
+        }
+        
+        for (key, value) in self.NSObjectCache {
+            if value.expirationDate <= purgeDate {
+                self.NSObjectCache[key] = nil
+            }
+        }
+    }
+    
     func saveCacheToDisk() {
         //save codable cache - could probably just serialize the dictionary itself, but alas:
         var codablediskcache:[CodableCacheObject] = [];
