@@ -57,14 +57,14 @@ class CacheService {
     func purgeExpiredObjects() {
         let purgeDate = Date()
         for (key, value) in self.CodableCache {
-            if value.expirationDate <= purgeDate {
-                self.CodableCache[key] = nil
+            if value.expires == true && value.expirationDate <= purgeDate {
+                self.CodableCache.removeValue(forKey: key)
             }
         }
         
         for (key, value) in self.NSObjectCache {
-            if value.expirationDate <= purgeDate {
-                self.NSObjectCache[key] = nil
+            if value.expires == true && value.expirationDate <= purgeDate {
+                self.NSObjectCache.removeValue(forKey: key)
             }
         }
     }
@@ -97,6 +97,7 @@ class CacheService {
     }
     
     public func loadCacheFromDisk() {
+        let loadDate = Date()
         //load codables:
         if let loadedData = FileSystem.readFromCacheDirectory(fileName: CodableCacheFileName) {
             do {
@@ -104,7 +105,7 @@ class CacheService {
                 if let diskcache = try jsonDecoder.decode([CodableCacheObject]?.self, from: loadedData) {
                     print("Successfully unarchived CodableObjectCache: \(diskcache.count) items")
                     for entry in diskcache {
-                        if entry.expirationDate > Date() {
+                        if entry.expires == false || entry.expirationDate > loadDate {
                             CodableCache[entry.key] = entry;
                         }
                     }
@@ -127,7 +128,7 @@ class CacheService {
                 if let diskcache = try NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(loadedData) as? NSCacheObjectList {
                     print("Successfully unarchived NSObjectCache: \(diskcache.list.count) items")
                     for entry in diskcache.list {
-                        if entry.expirationDate > Date() {
+                        if entry.expires == false || entry.expirationDate > loadDate {
                             NSObjectCache[entry.key] = entry;
                         }
                     }
@@ -145,32 +146,33 @@ class CacheService {
     
     //WARNING: ALL nscache objects need to follow the NSObject, NSCoding standard in order to serialize properly.
     //So why are we doing this?  Codable only works on almalgamations of primitive types, and swift can't serialize general AnyObjects yet, while NSObject can, provided you implement NSCoding (and images happen to serialize perfectly, as they already adhere to NSCoding).
+    //update: casting [Codable] to AnyObject throws it's type away
     
-    func cacheObject<T>(key: String, object: T, TTLInMinutes:Int? = nil)
+    func cacheObject<T>(key: String, object: T, expires:Bool = true, TTLInMinutes:Int? = nil)
     {
         var newTTL = TTLInMinutes
         if newTTL == nil {
             if object is UIImage {
                 newTTL = 1440 //cache images for a day
             } else {
-                newTTL = 525600 //cache anything else for a long date (login timeout should eventually refresh these)
+                newTTL = 10 //cache anything else for 10 MINUTES
             }
         }
         if object is Codable {
             if let objectAsJson = (object as! Codable).toJSONString() {
-                let codableCacheObj = CodableCacheObject(key: key, expirationDate: Date().addingTimeInterval(TimeInterval(newTTL! * 60)), stringSerializedObject: objectAsJson)
+                let codableCacheObj = CodableCacheObject(key: key, expires: expires, expirationDate: Date().addingTimeInterval(TimeInterval(newTTL! * 60)), stringSerializedObject: objectAsJson)
                 queue.sync(flags: .barrier) {
                     self.CodableCache[key] = codableCacheObj;
-                    print("cached data for: \(key)")
+                    //print("cached data for: \(key)")
                 }
             } else {
                 print("could not serialize codable object for: \(key)")
             }
         } else {
-            let cacheObj = NSCacheObject(key: key, expirationDate: Date().addingTimeInterval(TimeInterval(newTTL! * 60)), object: object as AnyObject)
+            let cacheObj = NSCacheObject(key: key, expires: expires, expirationDate: Date().addingTimeInterval(TimeInterval(newTTL! * 60)), object: object as AnyObject)
             queue.sync(flags: .barrier) {
                 self.NSObjectCache[key] = cacheObj;
-                print("cached data for: \(key)")
+                //print("cached data for: \(key)")
             }
         }
     }
@@ -180,50 +182,50 @@ class CacheService {
             if T.self is Codable.Type {
                 if let cachedObject = CodableCache[key] {
                     //should be in UTC to deal with a change in timezone.... unless that is handled under the hood.  dont care right now
-                    if cachedObject.expirationDate > Date() {
+                    if  cachedObject.expires == false || cachedObject.expirationDate > Date() {
                         
                         guard let model = T.self as? Decodable.Type else {
-                            NSObjectCache[key] = nil;
-                            print("could not convert cached object to type \(T.self) for: \(key)")
+                            CodableCache.removeValue(forKey: key)
+                            print("could not convert codable cached object to type \(T.self) for: \(key)")
                             return nil as T?;
                         }
                         
                         if let returnObj = try? model.init(jsonData: cachedObject.stringSerializedObject.data(using: .utf8)!) as? T {
-                            print("Found and returned good object for key: \(key)")
+                            //print("Found and returned good object for key: \(key)")
                             return returnObj;
                         } else {
-                            NSObjectCache[key] = nil;
-                            print("could not convert cached object to type \(T.self) for: \(key)")
+                            CodableCache.removeValue(forKey: key)
+                            print("could not convert codable cached object to type \(T.self) for: \(key)")
                             return nil as T?;
                         }
                     } else {
-                        NSObjectCache[key] = nil;
-                        print("cache expired for key (removing now): \(key)")
+                        CodableCache.removeValue(forKey: key)
+                        print("cache expired for codable key (removing now): \(key)")
                         return nil as T?;
                     }
                 } else {
-                    print("object does not exist in cache for key: \(key)")
+                    //print("object does not exist in cache for key: \(key)")
                     return nil as T?;
                 }
             } else  {
                 if let cachedObject = NSObjectCache[key] {
                     //should be in UTC to deal with a change in timezone.... unless that is handled under the hood.  dont care right now
-                    if cachedObject.expirationDate > Date() {
+                    if cachedObject.expires == false || cachedObject.expirationDate > Date() {
                         if let returnObj = cachedObject.object as? T {
-                            print("Found and returned good object for key: \(key)")
+                            //print("Found and returned good object for key: \(key)")
                             return returnObj;
                         } else {
-                            NSObjectCache[key] = nil;
-                            print("could not convert cached object to type \(T.self) for: \(key)")
+                            NSObjectCache.removeValue(forKey: key)
+                            print("could not convert nsobject cached object to type \(T.self) for: \(key)")
                             return nil as T?;
                         }
                     } else {
-                        NSObjectCache[key] = nil;
-                        print("cache expired for key (removing now): \(key)")
+                        NSObjectCache.removeValue(forKey: key)
+                        print("cache expired for nsobject key (removing now): \(key)")
                         return nil as T?;
                     }
                 } else {
-                    print("object does not exist in cache for key: \(key)")
+                    //print("object does not exist in cache for key: \(key)")
                     return nil as T?;
                 }
             }
@@ -237,11 +239,13 @@ class CacheService {
 
 class CodableCacheObject : Codable {
     var key: String
+    var expires:Bool
     var expirationDate: Date
     var stringSerializedObject: String
     
-    init (key: String, expirationDate:Date, stringSerializedObject: String) {
+    init (key: String, expires:Bool, expirationDate:Date, stringSerializedObject: String) {
         self.key = key
+        self.expires = expires
         self.expirationDate = expirationDate
         self.stringSerializedObject = stringSerializedObject
     }
@@ -276,17 +280,19 @@ class NSCacheObjectList : NSObject, NSSecureCoding {
 }
 
 //WARNING: ALL nscache objects need to follow the NSObject, NSCoding standard in order to serialize properly.
-//So why are we doing this?  Codable only works on amalgamations of primitive types, and swift can't serialize general AnyObjects yet, while NSObject can, provided you implement NSCoding (and images happen to serialize perfectly, as they already adhere to NSCoding).
+//So why are we doing this?  Codable only works on primitive types, and swift can't serialize general AnyObjects yet, while NSObject can, provided you implement NSCoding (and images happen to serialize perfectly, as they already adhere to NSCoding).
 
 class NSCacheObject : NSObject, NSSecureCoding {
     static var supportsSecureCoding: Bool = true
     
     var key: String
+    var expires:Bool
     var expirationDate: Date
     var object: AnyObject
     
-    init (key: String, expirationDate:Date, object: AnyObject) {
+    init (key: String, expires:Bool, expirationDate:Date, object: AnyObject) {
         self.key = key
+        self.expires = expires
         self.expirationDate = expirationDate
         self.object = object
         super.init()
@@ -294,17 +300,20 @@ class NSCacheObject : NSObject, NSSecureCoding {
     
     required convenience init?(coder aDecoder: NSCoder) {
         guard let k = aDecoder.decodeObject(forKey: "key") as? String,
-            let val = aDecoder.decodeObject(forKey: "object"),
-            let expiry = aDecoder.decodeObject(forKey: "expirationDate") as? Date else {
-                return nil
+              let expiry = aDecoder.decodeObject(forKey: "expirationDate") as? Date,
+              let val = aDecoder.decodeObject(forKey: "object")
+        else {
+            return nil
         }
+        let exp = aDecoder.decodeBool(forKey: "expires")
         
-        self.init(key: k, expirationDate: expiry, object: val as AnyObject)
+        self.init(key: k, expires: exp, expirationDate: expiry, object: val as AnyObject)
     }
     
     func encode(with aCoder: NSCoder) {
         aCoder.encode(key, forKey: "key")
         aCoder.encode(expirationDate, forKey: "expirationDate")
+        aCoder.encode(expires, forKey: "expires")
         aCoder.encode(object, forKey: "object")
     }
 }
